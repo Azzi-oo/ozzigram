@@ -1,4 +1,7 @@
+from typing import Any
 from django.contrib import admin
+from django.db.models.query import QuerySet
+from django.http.request import HttpRequest
 from general.models import (
     User,
     Post,
@@ -7,6 +10,8 @@ from general.models import (
 )
 from django.contrib.auth.models import Group
 from rangefilter.filters import DateRangeFilter
+from general.filters import AuthorFilter, PostFilter
+from django_admin_listfilter_dropdown.filters import ChoiceDropdownFilter
 
 
 @admin.register(User)
@@ -106,6 +111,9 @@ class PostModelAdmin(admin.ModelAdmin):
     def get_comment_count(self, obj):
         return obj.comments.count()
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("comments")
+
     fields = (
         "date_joined",
     )
@@ -115,9 +123,9 @@ class PostModelAdmin(admin.ModelAdmin):
         "author__username",
     )
     list_filter = (
+        AuthorFilter,
         ("created_at", DateRangeFilter),
     )
-
 
 
 @admin.register(Comment)
@@ -136,9 +144,12 @@ class CommentModelAdmin(admin.ModelAdmin):
     readonly_fields = (
         "created_at",
     )
-    search_fields = (
-        "author__username",
-        "post__title",
+    list_filter = (
+        PostFilter,
+        AuthorFilter,
+    )
+    raw_id_fields = (
+        "author",
     )
 
 
@@ -150,8 +161,16 @@ class ReactionModelAdmin(admin.ModelAdmin):
         "post",
         "value",
     )
-    list_filter = ("value", )
+    list_filter = (
+        PostFilter,
+        AuthorFilter,
+        ("value", ChoiceDropdownFilter),
+    )
     search_fields = ("author__username", "post__title")
+    autocomplete_fields = (
+        "author",
+        "post",
+    )
 
 
 admin.site.unregister(Group)
