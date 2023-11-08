@@ -97,35 +97,54 @@ class PostModelAdmin(admin.ModelAdmin):
         "id",
         "author",
         "title",
-        "body",
+        "get_body",
+        "get_comment_count",
         "created_at",
     )
-
-    def get_body(self, obj):
-        max_length = 64
-        if len(obj.body) > max_length:
-            return obj.body[:61] + "..."
-        return obj.body
-    get_body.short_description = "body"
-
-    def get_comment_count(self, obj):
-        return obj.comments.count()
-
-    def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related("comments")
-
     fields = (
-        "date_joined",
+        "author",
+        "title",
+        "body",
+        "created_at",
     )
     search_fields = (
         "id",
         "title",
         "author__username",
     )
+    readonly_fields = (
+        "created_at",
+    )
     list_filter = (
         AuthorFilter,
         ("created_at", DateRangeFilter),
     )
+    autocomplete_fields = (
+        "author",
+    )
+
+    # case 1
+    def get_queryset(self, request):
+        return super().get_queryset(request).prefetch_related("comments")
+
+    def get_comment_count(self, obj):
+        return obj.comments.count()
+
+    # # case 2
+    # def get_queryset(self, request):
+    #     return super().get_queryset(request).annotate(comment_count=Count("comments"))
+
+    # def get_comment_count(self, obj):
+    #     return obj.comment_count
+
+    def get_body(self, obj):
+        max_length = 64
+        if len(obj.body) > max_length:
+            return obj.body[:61] + "..."
+        return obj.body
+
+    get_body.short_description = "body"
+    get_comment_count.short_description = "comment count"
 
 
 @admin.register(Comment)

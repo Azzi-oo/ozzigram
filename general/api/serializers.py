@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from general.models import User
+from general.models import User, Post
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -23,3 +23,116 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user.set_password(validated_data['password'])
         user.save()
         return user
+
+
+class UserListSerializer(serializers.ModelSerializer):
+    is_friend = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ("id", "first_name", "last_name", "is_friend")
+
+    def get_is_friend(self, obj) -> bool:
+        current_user = self.context["request"].user
+        return current_user in obj.friends.all()
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return UserRegistrationSerializer
+        return UserListSerializer
+
+
+class NestedPostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Post
+        fields = (
+            "id",
+            "title",
+            "body",
+            "created_at",
+        )
+
+
+class UserRetrieveSerializer(serializers.ModelSerializer):
+    is_friend = serializers.SerializerMethodField()
+    friend_count = serializers.SerializerMethodField()
+    posts = NestedPostSerializer(many=True)
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "first_name",
+            "last_name",
+            "email",
+            "is_friend",
+            "friend_count",
+            "posts",
+        )
+
+    def get_friend_count(self, obj) -> int:
+        return obj.friends.count()
+
+    def get_is_friend(self, obj) -> bool:
+        return obj in self.context["request"].user.friends.all()
+
+
+class UserShortSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("id", "first_name", "last_name")
+
+
+class PostListSerializer(serializers.ModelSerializer):
+    author = UserShortSerializer()
+    body = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Post
+        fields = (
+            "id",
+            "author",
+            "title",
+            "body",
+            "created_at",
+        )
+
+    def get_body(self, obj) -> str:
+        if len(obj.body) > 128:
+            return obj.body[:125] + "..."
+        return obj.body
+
+
+class PostRetrieveSerializer(serializers.ModelSerializer):
+    author = UserShortSerializer()
+    my_reaction = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Post
+        fields = (
+            "id",
+            "author",
+            "title",
+            "body",
+            "my_reaction",
+            "created_at",
+        )
+
+    def get_my_reaction(self, obj) -> str:
+        reaction = self.context["request"].user.reactions.filter(post=obj).last()
+        return reaction.value if reaction else ""
+
+
+class PostCreateUpdateSerializer(serializers.ModelSerializer):
+    author = serializers.HiddenField(
+        default=serializers.CurrentUserDefault(),
+    )
+
+    class Meta:
+        model = Post
+        fields = (
+            "id",
+            "author",
+            "title",
+            "body",
+        )
