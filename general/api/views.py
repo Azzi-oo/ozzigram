@@ -1,12 +1,13 @@
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
-from rest_framework.mixins import CreateModelMixin, ListModelMixin, RetrieveModelMixin
-from general.api.serializers import UserRegistrationSerializer, UserRetrieveSerializer, UserListSerializer, PostListSerializer, PostRetrieveSerializer, PostCreateUpdateSerializer 
-from general.models import User, Post
+from rest_framework.mixins import CreateModelMixin, ListModelMixin, RetrieveModelMixin, DestroyModelMixin
+from general.api.serializers import UserRegistrationSerializer, UserRetrieveSerializer, UserListSerializer, PostListSerializer, PostRetrieveSerializer, PostCreateUpdateSerializer, CommentSerializer, ReactionSerializer
+from general.models import User, Post, Comment
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import mixins, viewsets
 from rest_framework.exceptions import PermissionDenied
+from django_filters.rest_framework import DjangoFilterBackend
 
 
 class UserViewSet(
@@ -92,3 +93,29 @@ class PostViewSet(ModelViewSet):
         if instance.author != self.request.user:
             raise PermissionDenied("Вы не являетесь автором этого поста")
         instance.delete()
+
+
+class CommentViewSet(
+    CreateModelMixin,
+    DestroyModelMixin,
+    ListModelMixin,
+    GenericViewSet,
+):
+    queryset = Comment.objects.all().order_by("-id")
+    permission_classes = [IsAuthenticated]
+    serializer_class = CommentSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["post__id"]
+
+    def perform_destroy(self, instance):
+        if instance.author != self.request.user:
+            raise PermissionDenied("Вы не являетесь автором этого комментария.")
+        instance.delete()
+
+
+class ReactionViewSet(
+    CreateModelMixin,
+    GenericViewSet,
+):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ReactionSerializer

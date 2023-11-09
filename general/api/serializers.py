@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from general.models import User, Post
+from general.models import User, Post, Comment, Reaction
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -136,3 +136,55 @@ class PostCreateUpdateSerializer(serializers.ModelSerializer):
             "title",
             "body",
         )
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    author = serializers.HiddenField(
+        default=serializers.CurrentUserDefault(),
+    )
+
+    def get_fields(self):
+        fields = super().get_fields()
+        if self.context["request"].method == "GET":
+            fields["author"] = UserShortSerializer(read_only=True)
+        return fields
+
+    class Meta:
+        model = Comment
+        fields = (
+            "id",
+            "author",
+            "post",
+            "body",
+            "created_at",
+        )
+
+
+class ReactionSerializer(serializers.ModelSerializer):
+    author = serializers.HiddenField(
+        default=serializers.CurrentUserDefault(),
+    )
+
+    class Meta:
+        model = Reaction
+        fields = (
+            "id",
+            "author",
+            "post",
+            "value",
+        )
+
+    def create(self, validated_data):
+        reaction = Reaction.objects.filter(
+            post=validated_data["post"],
+            author=validated_data["author"],
+        ).last()
+        if not reaction:
+            return Reaction.objects.create(**validated_data)
+
+        if reaction.value == validated_data["value"]:
+            reaction.value = None
+        else:
+            reaction.value = validated_data["value"]
+        reaction.save()
+        return reaction
