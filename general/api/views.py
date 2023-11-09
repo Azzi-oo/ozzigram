@@ -1,6 +1,6 @@
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 from rest_framework.mixins import CreateModelMixin, ListModelMixin, RetrieveModelMixin, DestroyModelMixin
-from general.api.serializers import UserRegistrationSerializer, UserRetrieveSerializer, UserListSerializer, PostListSerializer, PostRetrieveSerializer, PostCreateUpdateSerializer, CommentSerializer, ReactionSerializer
+from general.api.serializers import UserRegistrationSerializer, UserRetrieveSerializer, UserListSerializer, PostListSerializer, PostRetrieveSerializer, PostCreateUpdateSerializer, CommentSerializer, ReactionSerializer, ChatSerializer, MessageListSerializer
 from general.models import User, Post, Comment
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework import mixins, viewsets
 from rest_framework.exceptions import PermissionDenied
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import F, Case, When, CharField, Value
 
 
 class UserViewSet(
@@ -119,3 +120,27 @@ class ReactionViewSet(
 ):
     permission_classes = [IsAuthenticated]
     serializer_class = ReactionSerializer
+
+
+class ChatViewSet(
+    CreateModelMixin,
+    GenericViewSet,
+):
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == "messages":
+            return MessageListSerializer
+        return ChatSerializer
+
+    @action(detail=True, methods=["get"])
+    def messages(self, request, pk=None):
+        messages = self.get_object().messages.filter(chat__id=pk).annotate(
+            message_author=Case(
+                When(author=self.request.user, then=Value("Вы")),
+                default=F("author__first_name"),
+                output_field=CharField(),
+            )
+        ).order_by("-created_at")
+        serializer = self.get_serializer(messages, many=True)
+        return Response(serializer.data)
