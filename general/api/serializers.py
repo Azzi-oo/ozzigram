@@ -222,3 +222,42 @@ class MessageListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
         fields = ("id", "content", "message_author", "created_at")
+
+
+class ChatListSerializer(serializers.ModelSerializer):
+    companion_name = serializers.SerializerMethodField()
+    last_message_content = serializers.SerializerMethodField()
+    last_message_datetime = serializers.DateTimeField()
+
+    class Meta:
+        model = Chat
+        fields = (
+            "id",
+            "companion_name",
+            "last_message_content",
+            "last_message_datetime",
+        )
+
+    def get_last_message_content(self, obj) -> str:
+        return obj.last_message_content
+
+    def get_companion_name(self, obj) -> str:
+        companion = obj.user_1 if obj.user_2 == self.context["request"].user else obj.user_2
+        return f"{companion.first_name} {companion.last_name}"
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    author = serializers.HiddenField(
+        default=serializers.CurrentUserDefault(),
+    )
+
+    def validate(self, attrs):
+        chat = attrs["chat"]
+        author = attrs["author"]
+        if chat.user_1 != author and chat.user_2 != author:
+            raise serializers.ValidationError("Вы не являетесь участником этого чата.")
+        return super().validate(attrs)
+
+    class Meta:
+        model = Message
+        fields = ("id", "author", "content", "chat", "created_at")
