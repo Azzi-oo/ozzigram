@@ -55,4 +55,4 @@ class MessageFactory(DjangoModelFactory):
 
     content = factory.Faker("text")
     author = factory.SubFactory(UserFactory)
-    chat = factory.SubFactory(ChatFactory)
+    chat = factory.LazyAttribute(lambda obj: ChatFactory(user_1=obj.author))
