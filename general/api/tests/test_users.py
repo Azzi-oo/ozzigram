@@ -1,5 +1,5 @@
 from rest_framework.test import APITestCase
-from general.factories import UserFactory
+from general.factories import UserFactory, PostFactory
 from django.contrib.auth.hashers import check_password
 from rest_framework import status
 import json
@@ -141,3 +141,45 @@ class UserTestCase(APITestCase):
 
         self.user.refresh_from_db()
         self.assertTrue(friend not in self.user.friends.all())
+
+    def test_retrieve_user(self):
+        target_user = UserFactory()
+
+        target_user.friends.add(self.user)
+        target_user.friends.add(UserFactory())
+        target_user.save()
+
+        post_1 = PostFactory(author=target_user, title="Post 1")
+        post_2 = PostFactory(author=target_user, title="Post 2")
+
+        PostFactory.create_batch(10)
+
+        response = self.client.get(
+            path=f"{self.url}{target_user.pk}/",
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        expected_data = {
+            "id": target_user.pk,
+            "first_name": target_user.first_name,
+            "last_name": target_user.last_name,
+            "email": target_user.email,
+            "is_friend": True,
+            "friend_count": 2,
+            "posts": [
+                {
+                    "id": post_1.pk,
+                    "title": post_1.title,
+                    "body": post_1.body,
+                    "created_at": post_1.created_at.strftime("%Y-%m-%dT%H:%M:%S"),
+                },
+                {
+                    "id": post_2.pk,
+                    "title": post_2.title,
+                    "body": post_2.body,
+                    "created_at": post_2.created_at.strftime("%Y-%m-%dT%H:%M:%S"),
+                },
+            ],
+        }
+        self.assertEqual(expected_data, response.data)
