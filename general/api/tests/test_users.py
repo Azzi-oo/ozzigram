@@ -221,3 +221,46 @@ class UserTestCase(APITestCase):
             "is_friend": False,
         }
         self.assertDictEqual(response.data["results"][0], expected_data)
+
+    def test_me(self):
+        target_user = UserFactory()
+        self.client.force_authenticate(user=target_user)
+
+        target_user.friends.add(self.user)
+        target_user.friends.add(UserFactory())
+        target_user.save()
+
+        post_1 = PostFactory(author=target_user, title="Post 1")
+        post_2 = PostFactory(author=target_user, title="Post 2")
+
+        PostFactory.create_batch(10)
+
+        response = self.client.get(
+            path=f"{self.url}me/",
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        expected_data = {
+            "id": target_user.pk,
+            "first_name": target_user.first_name,
+            "last_name": target_user.last_name,
+            "email": target_user.email,
+            "is_friend": False,
+            "friend_count": 2,
+            "posts": [
+                {
+                    "id": post_1.pk,
+                    "title": post_1.title,
+                    "body": post_1.body,
+                    "created_at": post_1.created_at.strftime("%Y-%m-%dT%H:%M:S"),
+                },
+                {
+                    "id": post_2.pk,
+                    "title": post_2.title,
+                    "body": post_2.body,
+                    "created_at": post_2.created_at.strftime("%Y-%m-%dT%H:%M:S"),
+                },
+            ],
+        }
+        self.assertDictEqual(expected_data, response.data)
