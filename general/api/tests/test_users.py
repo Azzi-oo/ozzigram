@@ -102,4 +102,42 @@ class UserTestCase(APITestCase):
         self.user.refresh_from_db()
         self.assertTrue(friend in self.user.friends.all())
 
-    
+    def test_user_add_friend_request_whith_existent_friend(self):
+        friend = UserFactory()
+        self.user.friends.add(friend)
+        self.user.save()
+
+        url = f"{self.url}{friend.pk}/add_friend/"
+
+        response = self.client.post(path=url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.user.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.user.refresh_from_db()
+        self.assertTrue(friend in self.user.friends.all())
+
+    def test_user_remove_friend(self):
+        friend = UserFactory()
+        self.user.friends.add(friend)
+        self.user.save()
+
+        url = f"{self.url}{friend.pk}/remove_friend/"
+
+        response = self.client.post(path=url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.user.refresh_from_db()
+        self.assertTrue(friend not in self.user.friends.all())
+
+    def test_user_add_friend_request_when_non_existent_friend(self):
+        friend = UserFactory()
+
+        url = f"{self.url}{friend.pk}/remove_friend/"
+
+        response = self.client.post(path=url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.user.refresh_from_db()
+        self.assertTrue(friend not in self.user.friends.all())
