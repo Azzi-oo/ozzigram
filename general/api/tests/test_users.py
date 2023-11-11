@@ -92,4 +92,14 @@ class UserTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(User.objects.all().count(), 1)
 
+    def test_user_add_friend(self):
+        friend = UserFactory()
+        url = f"{self.url}{friend.pk}/add_friend/"
+
+        response = self.client.post(path=url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.user.refresh_from_db()
+        self.assertTrue(friend in self.user.friends.all())
+
     
