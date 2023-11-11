@@ -183,3 +183,41 @@ class UserTestCase(APITestCase):
             ],
         }
         self.assertEqual(expected_data, response.data)
+
+    def test_get_user_friends(self):
+        target_user = UserFactory()
+
+        friends = UserFactory.create_batch(3)
+        target_user.friends.set(friends)
+        target_user.save()
+
+        UserFactory.create_batch(5)
+
+        url = f"{self.url}{target_user.pk}/friends/"
+        response = self.client.get(path=url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 3)
+
+        friend_ids = {user.pk for user in friends}
+        for friend in response.data["results"]:
+            self.assertTrue(friend["id"] in friend_ids)
+
+    def test_get_user_friends_response_data_structure(self):
+        target_user = UserFactory()
+
+        friend = UserFactory()
+
+        target_user.friends.add(friend)
+        target_user.save()
+
+        url = f"{self.url}{target_user.pk}/friends/"
+        response = self.client.get(path=url, format="json")
+        self.assertEqual(len(response.data["results"]), 1)
+
+        expected_data = {
+            "id": friend.pk,
+            "first_name": friend.first_name,
+            "last_name": friend.last_name,
+            "is_friend": False,
+        }
+        self.assertDictEqual(response.data["results"][0], expected_data)
