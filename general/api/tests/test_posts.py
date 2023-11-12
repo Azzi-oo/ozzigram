@@ -152,3 +152,27 @@ class PostTestCase(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_update_own_post_with_put(self):
+        post = PostFactory(
+            author=self.user,
+            title="old_title",
+            body="old_body",
+        )
+        new_data = {
+            "title": "new_title",
+            "body": "new_body",
+        }
+        response = self.client.put(
+            path=f"{self.url}{post.pk}/",
+            data=new_data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(response.data["title"], new_data["title"])
+        self.assertEqual(response.data["body"], new_data["body"])
+
+        post.refresh_from_db()
+        self.assertEqual(post.title, new_data["title"])
+        self.assertEqual(post.body, new_data["body"])
