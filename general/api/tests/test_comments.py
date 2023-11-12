@@ -51,4 +51,15 @@ class CommentTestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Comment.objects.count(), 0)
 
-    
+    def test_delete_other_comment(self):
+        comment = CommentFactory()
+        response = self.client.delete(
+            f"{self.url}{comment.pk}/",
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Comment.objects.count(), 1)
+        self.assertEqual(
+            response.data["detail"],
+            "Вы не являетесь автором этого комментария.",
+        )
