@@ -43,3 +43,33 @@ class PostTestCase(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(Post.objects.all().count(), 0)
+
+    def test_post_list(self):
+        PostFactory.create_batch(5)
+
+        response = self.client.get(path=self.url, formst="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 5)
+
+    def test_post_list_data_structure(self):
+        post = PostFactory()
+        response = self.client.get(path=self.url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        author = post.author
+        expected_data = {
+            "id": post.pk,
+            "author": {
+                "id": author.pk,
+                "first_name": author.first_name,
+                "last_name": author.last_name,
+            },
+            "title": post.title,
+            "body": (
+                post.body[:125] + "..."
+                if len(post.body) > 128
+                else post.body
+            ),
+            "created_at": post.created_at.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+        self.assertDictEqual(expected_data, response.data["results"][0])
