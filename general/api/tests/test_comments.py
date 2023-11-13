@@ -63,3 +63,39 @@ class CommentTestCase(APITestCase):
             response.data["detail"],
             "Вы не являетесь автором этого комментария.",
         )
+
+    def test_comment_list_filtered_by_post_id(self):
+        comments = CommentFactory.create_batch(5, post=self.post)
+
+        CommentFactory.create_batch(5)
+
+        url = f"{self.url}?post__id={self.post.pk}"
+        response = self.client.get(path=url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data["results"]), 5)
+
+        comments_ids = {comment.id for comment in comments}
+        for comment in response.data["results"]:
+            self.assertTrue(comment["id"] in comments_ids)
+
+    def test_comment_data_structure(self):
+        comment = CommentFactory(post=self.post)
+
+        url = f"{self.url}?post__id={self.post.pk}"
+        response = self.client.get(path=url, format="json")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        comment = Comment.objects.last()
+        expected_data = {
+            "id": comment.pk,
+            "body": comment.body,
+            "author": {
+                "id": comment.author.id,
+                "first_name": comment.author.first_name,
+                "last_name": comment.author.last_name,
+            },
+            "post": comment.post.id,
+            "created_at": comment.created_at.strftime("%Y-%m-%dT%H:%M^%S"),
+        }
+        self.assertDictEqual(response.data["results"][0], expected_data)
+    
