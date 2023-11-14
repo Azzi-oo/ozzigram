@@ -69,3 +69,16 @@ class ReactionTestCase(APITestCase):
         reaction.refresh_from_db()
         self.assertEqual(reaction.value, None)
     
+    def test_pass_invalid_value(self):
+        data = {
+            "post": self.post.id,
+            "value": "some invalid value",
+        }
+        response = self.client.post(
+            path=self.url,
+            data=data,
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.assertEqual(Reaction.objects.count(), 0)
